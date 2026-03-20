@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <div flux="panel=none" id="rooster">
+      <h1>
+        <div style="float:right; font-size:12px;">
+          Spring naar maand:
+          <select onchange="var u = ('rooster2/index2?periode=%24periode').replace('%24periode',$(this).val());">
+            <option value="2026-02">februari 2026</option>
+            <option selected="selected" value="2026-03">maart 2026</option>
+            <option value="2026-04">april 2026</option>
+            <option value="2026-05">mei 2026</option>
+          </select>
+        </div>
+        Persoonlijke rooster voor maart 2026
+      </h1>
+      <table class="calender">
+        <thead>
+          <tr>
+            <th class="themeAccent" colspan="8">
+              <div style="float:left;">
+                <a href="https://example.invalid/example-customer/example-location/rooster2/index2?periode=2026-02">
+                  Vorige maand
+                </a>
+              </div>
+              <div style="float:right;">
+                <a href="https://example.invalid/example-customer/example-location/rooster2/index2?periode=2026-04">
+                  Volgende maand
+                </a>
+              </div>
+              <b>maart 2026</b>
+            </th>
+          </tr>
+        </thead>
+        <tr>
+          <th>10</th>
+          <td title="2026-03-04" class="activ-beschikbaar">
+            <span class="caption">4</span>
+            <div uo="assignment://58425" class="ass ao-73 note--" title="Dubbelklik voor details">
+              <div title="Example Venue &gt; Department &gt; Shift Alpha">
+                Example Venue &gt; Department &gt; Shift Alpha
+              </div>
+              <b>10:30 - 17:30</b> (0 min. pauze)
+            </div>
+          </td>
+          <td title="2026-03-05" class="activ-beschikbaar">
+            <span class="caption">5</span>
+          </td>
+          <td title="2026-03-07" class="activ-beschikbaar">
+            <span class="caption">7</span>
+            <div uo="assignment://64065" class="ass ao-36 note--" title="Dubbelklik voor details">
+              <div title="Example Venue &gt; Department &gt; Shift Beta">
+                Example Venue &gt; Department &gt; Shift Beta
+              </div>
+              <b>11:30 - 17:30</b> (0 min. pauze)
+            </div>
+            <div uo="assignment://58438" class="ass ao-36 note--" title="Dubbelklik voor details">
+              <div title="Example Venue &gt; Department &gt; Shift Gamma">
+                Example Venue &gt; Department &gt; Shift Gamma
+              </div>
+              <b>17:30 - 23:30</b> (0 min. pauze)
+            </div>
+          </td>
+          <td title="2026-03-08" class="activ-beschikbaar">
+            <span class="caption">8</span>
+            <div uo="assignment://58364" class="ass ao-73 note--" title="Dubbelklik voor details">
+              <div title="Example Venue &gt; Department &gt; Shift Delta">
+                Example Venue &gt; Department &gt; Shift Delta
+              </div>
+              <b>11:00 - 18:00</b> (0 min. pauze)
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <th>14</th>
+          <td title="2026-04-04" class="outsideMonth">
+            <span class="caption">4</span>
+            <div uo="agenda://38185" class="agen agen-onbeschikbaar" title="Dubbelklik voor details">
+              Unavailable (pending)
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

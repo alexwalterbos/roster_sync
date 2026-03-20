@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dyflexis-roster-sync"
+version = "0.1.0"
+description = "Export roster data from Dyflexis and sync it to Google Calendar."
+readme = "README.md"
+license = { text = "Proprietary" }
+authors = [
+  { name = "Alex Walterbos" },
+]
+requires-python = ">=3.11"
+dependencies = [
+  "beautifulsoup4>=4.12",
+  "google-api-python-client>=2.170",
+  "google-auth>=2.40",
+  "requests>=2.32",
+]
+keywords = ["dyflexis", "roster", "calendar", "scraping", "google-calendar"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: Other/Proprietary License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Office/Business :: Scheduling",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+roster-sync = "roster_sync.cli:main"
+
+[project.urls]
+Repository = "https://github.com/alexwalterbos/dyflexis-scan"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["roster_sync*"]
+exclude = ["*.egg-info"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"

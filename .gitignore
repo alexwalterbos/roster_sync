@@ -1,0 +1,4 @@
+resources/
+.venv/
+.roster-sync/
+*.egg-info/
