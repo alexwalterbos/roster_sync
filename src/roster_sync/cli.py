@@ -5,7 +5,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from .auth import build_session
+from .auth import build_session, refresh_dyflexis_session
 from .cache import PageCache
 from .config import AppConfig
 from .dyflexis_client import DyflexisClient
@@ -283,12 +283,19 @@ def _build_dyflexis_client(config: AppConfig, cookie_jar_path: Path | None) -> D
         cookie_jar_path=cookie_jar_path or config.cookie_jar_path,
         session_config_path=config.session_config_path,
     )
+    session_config_path = config.session_config_path
     return DyflexisClient(
         session=session,
         base_url=config.dyflexis_base_url,
         cache=PageCache(config.cache_dir),
         global_min_interval_seconds=config.global_min_interval_seconds,
         page_min_interval_seconds=config.page_min_interval_seconds,
+        reauthenticate=lambda: refresh_dyflexis_session(
+            session=session,
+            base_url=config.dyflexis_base_url,
+            credentials_config_path=config.credentials_config_path,
+            session_config_path=session_config_path,
+        ),
     )
 
 

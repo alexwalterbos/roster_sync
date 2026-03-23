@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import shutil
 from pathlib import Path
 import re
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -116,6 +117,11 @@ class PageCache:
             source="network",
         )
 
+    def delete(self, url: str) -> None:
+        page_dir = self.cache_dir / cache_key_for_url(url)
+        if page_dir.exists():
+            shutil.rmtree(page_dir)
+
     def get_last_request_at(self) -> datetime | None:
         if not self.state_file.exists():
             return None
@@ -129,4 +135,3 @@ class PageCache:
             "last_request_at": value.isoformat(),
         }
         self.state_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-

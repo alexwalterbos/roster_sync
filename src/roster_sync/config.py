@@ -7,12 +7,16 @@ from zoneinfo import ZoneInfo
 
 
 DEFAULT_BASE_URL = "https://example.invalid/example-customer/example-location/"
+LOCAL_BASE_URL_PATH = Path(".roster-sync/dyflexis_base_url.txt")
 
 
 @dataclass(slots=True)
 class AppConfig:
     dyflexis_base_url: str = field(
-        default_factory=lambda: os.getenv("DYFLEXIS_BASE_URL", DEFAULT_BASE_URL)
+        default_factory=lambda: os.getenv("DYFLEXIS_BASE_URL")
+        or _read_text_if_exists(LOCAL_BASE_URL_PATH)
+        or _infer_base_url_from_cache(Path(".roster-sync/cache"))
+        or DEFAULT_BASE_URL
     )
     timezone_name: str = field(
         default_factory=lambda: os.getenv("ROSTER_TIMEZONE", "Europe/Amsterdam")
@@ -54,6 +58,14 @@ class AppConfig:
             os.getenv("DYFLEXIS_SESSION_CONFIG", ".roster-sync/session.json")
         )
     )
+    credentials_config_path: Path = field(
+        default_factory=lambda: Path(
+            os.getenv(
+                "DYFLEXIS_CREDENTIALS_CONFIG",
+                ".roster-sync/dyflexis_credentials.json",
+            )
+        )
+    )
     cookie_jar_path: Path | None = field(
         default_factory=lambda: _optional_path(os.getenv("DYFLEXIS_COOKIE_JAR"))
     )
@@ -74,3 +86,28 @@ def _read_text_if_exists(path: Path) -> str | None:
         return None
     value = path.read_text(encoding="utf-8").strip()
     return value or None
+
+
+def _infer_base_url_from_cache(cache_dir: Path) -> str | None:
+    if not cache_dir.exists():
+        return None
+
+    for meta_path in sorted(cache_dir.glob("*/meta.json")):
+        meta_text = _read_text_if_exists(meta_path)
+        if not meta_text:
+            continue
+        try:
+            import json
+
+            url = json.loads(meta_text).get("url")
+        except Exception:
+            continue
+        if not url:
+            continue
+        if "/rooster2/index2" not in url:
+            continue
+
+        prefix = url.split("/rooster2/index2", 1)[0]
+        return prefix.rstrip("/") + "/"
+
+    return None

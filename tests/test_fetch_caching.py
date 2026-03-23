@@ -94,3 +94,27 @@ def test_fetches_and_caches_when_no_cache_exists(tmp_path: Path):
     assert result.source == "network"
     assert len(session.calls) == 1
     assert cache.get(result.url) is not None
+
+
+def test_reauthenticates_and_retries_when_first_response_is_login_page(tmp_path: Path):
+    cache = PageCache(tmp_path / "cache")
+    session = DummySession(
+        [
+            DummyResponse("<html><body><form id='login'></form></body></html>"),
+            DummyResponse(ROSTER_HTML),
+        ]
+    )
+    calls = {"reauth": 0}
+    client = DyflexisClient(
+        session=session,
+        base_url="https://example.invalid/example-customer/example-location/",
+        cache=cache,
+        reauthenticate=lambda: calls.__setitem__("reauth", calls["reauth"] + 1) or True,
+    )
+
+    result = client.fetch_current_roster_html()
+
+    assert result.source == "network"
+    assert result.html == ROSTER_HTML
+    assert calls["reauth"] == 1
+    assert len(session.calls) == 2

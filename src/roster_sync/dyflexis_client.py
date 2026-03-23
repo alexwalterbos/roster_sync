@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Callable
 from urllib.parse import urljoin
 
 import requests
@@ -29,12 +30,14 @@ class DyflexisClient:
         cache: PageCache | None = None,
         global_min_interval_seconds: int = 15,
         page_min_interval_seconds: int = 900,
+        reauthenticate: Callable[[], bool] | None = None,
     ) -> None:
         self.session = session
         self.base_url = base_url.rstrip("/") + "/"
         self.cache = cache
         self.global_min_interval_seconds = global_min_interval_seconds
         self.page_min_interval_seconds = page_min_interval_seconds
+        self.reauthenticate = reauthenticate
 
     def fetch_roster_month_html(self, period: str) -> FetchResult:
         url = requests.Request(
@@ -43,19 +46,42 @@ class DyflexisClient:
             params={"periode": period},
         ).prepare().url
         assert url is not None
-        return self._fetch_with_cache(url)
+        return self._fetch_roster_html(url)
 
     def fetch_current_roster_html(self) -> FetchResult:
         url = urljoin(self.base_url, "rooster2/index2")
-        return self._fetch_with_cache(url)
+        return self._fetch_roster_html(url)
 
     @staticmethod
     def looks_like_roster_html(html: str) -> bool:
         return 'table class="calender"' in html and 'id="rooster"' in html
 
-    def _fetch_with_cache(self, url: str) -> FetchResult:
+    def _fetch_roster_html(self, url: str) -> FetchResult:
+        result = self._fetch_with_cache(url)
+        if self.looks_like_roster_html(result.html):
+            return result
+        self._discard_non_roster_cache(url)
+
+        if self.reauthenticate is None:
+            return result
+
+        if not self.reauthenticate():
+            return result
+
+        result = self._fetch_with_cache(url, bypass_cache=True, allow_cache_write=True)
+        if not self.looks_like_roster_html(result.html):
+            self._discard_non_roster_cache(url)
+        return result
+
+    def _fetch_with_cache(
+        self,
+        url: str,
+        *,
+        bypass_cache: bool = False,
+        allow_cache_write: bool = True,
+    ) -> FetchResult:
         now = utc_now()
-        cached_page = self.cache.get(url) if self.cache else None
+        cached_page = None if bypass_cache else (self.cache.get(url) if self.cache else None)
 
         if cached_page and not is_page_fetch_allowed(cached_page.page_debounce_until, now):
             return FetchResult(
@@ -91,7 +117,7 @@ class DyflexisClient:
         response.raise_for_status()
 
         fetched_at = utc_now()
-        if self.cache:
+        if self.cache and allow_cache_write:
             stored = self.cache.set(
                 url=url,
                 html=response.text,
@@ -116,3 +142,7 @@ class DyflexisClient:
             fetched_at=fetched_at,
             status_code=response.status_code,
         )
+
+    def _discard_non_roster_cache(self, url: str) -> None:
+        if self.cache is not None:
+            self.cache.delete(url)

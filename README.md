@@ -23,6 +23,21 @@ roster-sync preview --html tests/fixtures/roster_march_2026.html
 
 For now you can either use a local session file at `.roster-sync/session.json` or export browser cookies to a Netscape/Mozilla cookie jar.
 
+To allow automatic Dyflexis session refresh, add a local ignored credentials file at
+`.roster-sync/dyflexis_credentials.json`:
+
+```json
+{
+  "username": "you@example.com",
+  "password": "your-password",
+  "authenticatorCode": "",
+  "rememberDevice": false
+}
+```
+
+When a roster fetch lands on the login page, the app will use this file to refresh
+the session and update `.roster-sync/session.json` automatically.
+
 Example local session file:
 
 ```json
