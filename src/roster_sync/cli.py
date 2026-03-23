@@ -12,6 +12,7 @@ from .dyflexis_client import DyflexisClient
 from .filled_periods import scan_filled_periods_from_current
 from .google_calendar_client import ServiceAccountGoogleCalendarClient, StubGoogleCalendarClient
 from .html_parser import RosterHtmlParser
+from .preflight import run_network_preflight
 from .sync_service import SyncService
 from .state_store import StateStore
 
@@ -179,6 +180,29 @@ def main() -> int:
 
     if args.command == "sync-filled-range":
         client = _build_dyflexis_client(config, getattr(args, "cookie_jar", None))
+        preflight = run_network_preflight(base_url=client.base_url, session=client.session)
+        if not preflight.ok:
+            print(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "failure_reason": "network-preflight-failed",
+                        "start_period": None,
+                        "last_filled_period": None,
+                        "stop_period": None,
+                        "error_period": None,
+                        "error_message": preflight.error,
+                        "periods": [],
+                        "synced_by_period": {},
+                        "synced_event_count_by_period": {},
+                        "preflight": asdict(preflight),
+                    },
+                    indent=2,
+                    default=str,
+                )
+            )
+            return 2
+
         scan = scan_filled_periods_from_current(client=client, parser=parser)
         service = SyncService(
             parser=parser,
@@ -195,10 +219,19 @@ def main() -> int:
             else:
                 result = client.fetch_roster_month_html(period.period)
             synced_by_period[period.period] = service.sync_html(result.html)
+        synced_event_count_by_period = {
+            period: len(event_ids) for period, event_ids in synced_by_period.items()
+        }
+
+        is_partial_failure = scan.error_period is not None
 
         print(
             json.dumps(
                 {
+                    "status": "failed" if is_partial_failure else "ok",
+                    "failure_reason": (
+                        "filled-period-scan-error" if is_partial_failure else None
+                    ),
                     "start_period": scan.start_period,
                     "last_filled_period": scan.last_filled_period,
                     "stop_period": scan.stop_period,
@@ -206,12 +239,14 @@ def main() -> int:
                     "error_message": scan.error_message,
                     "periods": [asdict(period) for period in scan.periods],
                     "synced_by_period": synced_by_period,
+                    "synced_event_count_by_period": synced_event_count_by_period,
+                    "preflight": asdict(preflight),
                 },
                 indent=2,
                 default=str,
             )
         )
-        return 0
+        return 1 if is_partial_failure else 0
 
     if args.command == "sync":
         html = args.html.read_text(encoding="utf-8")

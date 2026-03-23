@@ -111,6 +111,19 @@ class FailingNextMonthClient(FakeClient):
         return super().fetch_roster_month_html(period)
 
 
+class FlakyNextMonthClient(FakeClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.attempts = 0
+
+    def fetch_roster_month_html(self, period: str) -> FetchResult:
+        if period == "2026-04":
+            self.attempts += 1
+            if self.attempts < 3:
+                raise requests.ConnectionError("Temporary DNS resolution failed")
+        return super().fetch_roster_month_html(period)
+
+
 def test_scan_filled_periods_stops_at_first_empty_month():
     parser = RosterHtmlParser(timezone=ZoneInfo("Europe/Amsterdam"))
     client = FakeClient()
@@ -141,9 +154,26 @@ def test_scan_filled_periods_returns_partial_result_on_network_failure():
     assert scan.stop_period is None
     assert scan.error_period == "2026-04"
     assert "DNS resolution failed" in (scan.error_message or "")
+    assert "after 3 attempts" in (scan.error_message or "")
     assert [
         (period.period, period.entry_count, period.syncable_event_count)
         for period in scan.periods
     ] == [
         ("2026-03", 4, 4),
     ]
+
+
+def test_scan_filled_periods_retries_transient_network_error():
+    parser = RosterHtmlParser(timezone=ZoneInfo("Europe/Amsterdam"))
+    client = FlakyNextMonthClient()
+
+    scan = scan_filled_periods_from_current(
+        client=client,
+        parser=parser,
+        initial_backoff_seconds=0.0,
+    )
+
+    assert client.attempts == 3
+    assert scan.error_period is None
+    assert scan.last_filled_period == "2026-04"
+    assert scan.stop_period == "2026-05"

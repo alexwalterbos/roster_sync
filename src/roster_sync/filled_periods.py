@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import requests
 
 from .calendar_mapper import map_entries_to_events
@@ -12,6 +14,8 @@ def scan_filled_periods_from_current(
     *,
     client: DyflexisClient,
     parser: RosterHtmlParser,
+    max_fetch_attempts: int = 3,
+    initial_backoff_seconds: float = 1.0,
 ) -> FilledPeriodScan:
     current_result = client.fetch_current_roster_html()
     if not client.looks_like_roster_html(current_result.html):
@@ -51,7 +55,12 @@ def scan_filled_periods_from_current(
 
         period = next_period
         try:
-            result = client.fetch_roster_month_html(period)
+            result = _fetch_month_html_with_retry(
+                client=client,
+                period=period,
+                max_fetch_attempts=max_fetch_attempts,
+                initial_backoff_seconds=initial_backoff_seconds,
+            )
         except requests.RequestException as exc:
             return FilledPeriodScan(
                 start_period=periods[0].period,
@@ -59,7 +68,10 @@ def scan_filled_periods_from_current(
                 stop_period=None,
                 periods=periods,
                 error_period=period,
-                error_message=str(exc),
+                error_message=(
+                    f"{exc} (after {max_fetch_attempts} attempt"
+                    f"{'' if max_fetch_attempts == 1 else 's'})"
+                ),
             )
         if not client.looks_like_roster_html(result.html):
             raise ValueError(
@@ -74,3 +86,29 @@ def scan_filled_periods_from_current(
         error_period=None,
         error_message=None,
     )
+
+
+def _fetch_month_html_with_retry(
+    *,
+    client: DyflexisClient,
+    period: str,
+    max_fetch_attempts: int,
+    initial_backoff_seconds: float,
+) -> FetchResult:
+    if max_fetch_attempts < 1:
+        raise ValueError("max_fetch_attempts must be at least 1.")
+
+    last_error: requests.RequestException | None = None
+    for attempt_index in range(max_fetch_attempts):
+        try:
+            return client.fetch_roster_month_html(period)
+        except requests.RequestException as exc:
+            last_error = exc
+            is_last_attempt = attempt_index + 1 >= max_fetch_attempts
+            if is_last_attempt:
+                break
+            backoff_seconds = initial_backoff_seconds * (2**attempt_index)
+            time.sleep(backoff_seconds)
+
+    assert last_error is not None
+    raise last_error
