@@ -66,6 +66,22 @@ class AppConfig:
             )
         )
     )
+    automation_status_path: Path = field(
+        default_factory=lambda: Path(
+            os.getenv(
+                "ROSTER_AUTOMATION_STATUS_PATH",
+                ".roster-sync/automation-status.json",
+            )
+        )
+    )
+    automation_history_path: Path = field(
+        default_factory=lambda: Path(
+            os.getenv(
+                "ROSTER_AUTOMATION_HISTORY_PATH",
+                ".roster-sync/automation-history.jsonl",
+            )
+        )
+    )
     cookie_jar_path: Path | None = field(
         default_factory=lambda: _optional_path(os.getenv("DYFLEXIS_COOKIE_JAR"))
     )
