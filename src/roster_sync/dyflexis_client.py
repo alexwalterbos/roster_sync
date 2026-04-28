@@ -68,7 +68,11 @@ class DyflexisClient:
         if not self.reauthenticate():
             return result
 
-        result = self._fetch_with_cache(url, bypass_cache=True, allow_cache_write=True)
+        result = self._fetch_with_cache(
+            url,
+            bypass_cache=True,
+            allow_cache_write=True,
+        )
         if not self.looks_like_roster_html(result.html):
             self._discard_non_roster_cache(url)
         return result
@@ -101,16 +105,6 @@ class DyflexisClient:
                 self.global_min_interval_seconds,
             )
             if not decision.allowed_now:
-                if cached_page is not None:
-                    return FetchResult(
-                        html=cached_page.html,
-                        url=cached_page.url,
-                        source="stale-cache",
-                        fetched_at=cached_page.fetched_at,
-                        cache_key=cached_page.cache_key,
-                        content_sha256=cached_page.content_sha256,
-                        status_code=cached_page.status_code,
-                    )
                 wait_for_global_debounce(decision.wait_seconds)
 
         response = self.session.get(url, timeout=30)

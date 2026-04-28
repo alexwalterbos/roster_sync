@@ -46,7 +46,7 @@ def test_returns_cached_page_when_page_debounce_is_active(tmp_path: Path):
     assert session.calls == []
 
 
-def test_returns_stale_cache_when_global_debounce_blocks_network(tmp_path: Path):
+def test_waits_for_network_when_global_debounce_blocks_network(tmp_path: Path, monkeypatch):
     cache = PageCache(tmp_path / "cache")
     url = "https://example.invalid/example-customer/example-location/rooster2/index2?periode=2026-03"
     cached = cache.set(url=url, html=ROSTER_HTML, status_code=200, page_min_interval_seconds=1)
@@ -64,7 +64,7 @@ def test_returns_stale_cache_when_global_debounce_blocks_network(tmp_path: Path)
     meta_path.write_text(__import__("json").dumps(expired_meta, indent=2), encoding="utf-8")
     cache.set_last_request_at(datetime.now(timezone.utc))
 
-    session = DummySession([DummyResponse("should-not-be-used")])
+    session = DummySession([DummyResponse(ROSTER_HTML)])
     client = DyflexisClient(
         session=session,
         base_url="https://example.invalid/example-customer/example-location/",
@@ -73,11 +73,18 @@ def test_returns_stale_cache_when_global_debounce_blocks_network(tmp_path: Path)
         page_min_interval_seconds=1,
     )
 
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        "roster_sync.dyflexis_client.wait_for_global_debounce",
+        lambda seconds: sleeps.append(seconds),
+    )
+
     result = client.fetch_roster_month_html("2026-03")
 
-    assert result.source == "stale-cache"
+    assert result.source == "network"
     assert result.html == ROSTER_HTML
-    assert session.calls == []
+    assert len(session.calls) == 1
+    assert sleeps
 
 
 def test_fetches_and_caches_when_no_cache_exists(tmp_path: Path):
