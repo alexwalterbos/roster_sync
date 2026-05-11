@@ -10,10 +10,17 @@ from zoneinfo import ZoneInfo
 class FakeGoogleCalendarClient:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str | None]] = []
+        self.deleted: list[str] = []
 
     def upsert_event(self, event, google_event_id: str | None = None) -> str:
         self.calls.append((event.source_id, google_event_id))
         return google_event_id or f"google-{event.source_id}"
+
+    def list_managed_events_in_range(self, start_at, end_at) -> list[dict]:
+        return []
+
+    def delete_event(self, google_event_id: str) -> None:
+        self.deleted.append(google_event_id)
 
 
 def test_sync_html_skips_unchanged_items(tmp_path: Path):

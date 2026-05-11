@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Protocol
@@ -12,9 +13,25 @@ class GoogleCalendarClient(Protocol):
     def upsert_event(self, event: CalendarEventDraft, google_event_id: str | None = None) -> str:
         """Create or update an event and return its Google event id."""
 
+    def list_managed_events_in_range(self, start_at: datetime, end_at: datetime) -> list[dict]:
+        """List Google events in the range that have a managed source id."""
+
+    def delete_event(self, google_event_id: str) -> None:
+        """Delete a Google event by id."""
+
 
 class StubGoogleCalendarClient:
     def upsert_event(self, event: CalendarEventDraft, google_event_id: str | None = None) -> str:
+        raise NotImplementedError(
+            "Google Calendar sync is not implemented yet. Use the preview CLI first."
+        )
+
+    def list_managed_events_in_range(self, start_at: datetime, end_at: datetime) -> list[dict]:
+        raise NotImplementedError(
+            "Google Calendar sync is not implemented yet. Use the preview CLI first."
+        )
+
+    def delete_event(self, google_event_id: str) -> None:
         raise NotImplementedError(
             "Google Calendar sync is not implemented yet. Use the preview CLI first."
         )
@@ -43,6 +60,46 @@ class ServiceAccountGoogleCalendarClient:
         else:
             result = events_resource.insert(calendarId=self.calendar_id, body=body).execute()
         return result["id"]
+
+    def list_managed_events_in_range(self, start_at: datetime, end_at: datetime) -> list[dict]:
+        service = self._get_service()
+        events_resource = service.events()
+        page_token = None
+        managed_events: list[dict] = []
+
+        while True:
+            response = (
+                events_resource.list(
+                    calendarId=self.calendar_id,
+                    timeMin=start_at.isoformat(),
+                    timeMax=end_at.isoformat(),
+                    singleEvents=True,
+                    showDeleted=False,
+                    maxResults=2500,
+                    pageToken=page_token,
+                ).execute()
+            )
+            for item in response.get("items", []):
+                source_id = (
+                    item.get("extendedProperties", {})
+                    .get("private", {})
+                    .get("source_id")
+                )
+                if source_id:
+                    managed_events.append(item)
+
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
+
+        return managed_events
+
+    def delete_event(self, google_event_id: str) -> None:
+        service = self._get_service()
+        service.events().delete(
+            calendarId=self.calendar_id,
+            eventId=google_event_id,
+        ).execute()
 
     def _get_service(self):
         if self._service is not None:
